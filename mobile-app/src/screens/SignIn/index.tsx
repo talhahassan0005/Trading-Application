@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthField } from '../../components/AuthField';
@@ -16,11 +16,22 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'SignIn'>;
 export default function SignInScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const signIn = useAuthStore((s) => s.signIn);
-  const signInWithGoogle = useAuthStore((s) => s.signInWithGoogle);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const submit = async () => {
+    if (loading) return;
+    setLoading(true);
+    const res = await signIn(email, password);
+    setLoading(false);
+    setError(res.error ?? null);
+    // Account exists but its email was never confirmed: a fresh code was just sent.
+    if (res.needsCode) navigation.navigate('VerifyCode');
+    // On success the auth store sets `user` and the root navigator swaps to the app.
+  };
 
   const styles = useStyles((t) => ({
     card: { gap: t.spacing.lg },
@@ -78,17 +89,21 @@ export default function SignInScreen({ navigation }: Props) {
 
         <View style={styles.row}>
           <Checkbox checked={remember} onChange={setRemember} label="Remember me" />
-          <Pressable onPress={() => Alert.alert('Demo app', 'Password reset is not available in this demo.')}>
+          <Pressable onPress={() => Alert.alert('Forgot password', 'Password reset is coming soon. Please contact support for help.')}>
             <Text style={styles.link}>Forgot your password?</Text>
           </Pressable>
         </View>
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <Pressable style={styles.submit} onPress={() => setError(signIn(email, password))} accessibilityRole="button">
+        <Pressable style={[styles.submit, loading && { opacity: 0.7 }]} onPress={submit} disabled={loading} accessibilityRole="button">
           <Text style={styles.submitText}>Sign in</Text>
           <View style={styles.arrowCircle}>
-            <Ionicons name="arrow-forward" size={14} color={colors.onAccent} />
+            {loading ? (
+              <ActivityIndicator size="small" color={colors.onAccent} />
+            ) : (
+              <Ionicons name="arrow-forward" size={14} color={colors.onAccent} />
+            )}
           </View>
         </Pressable>
 
@@ -98,7 +113,11 @@ export default function SignInScreen({ navigation }: Props) {
           <View style={styles.line} />
         </View>
 
-        <Pressable style={styles.google} onPress={signInWithGoogle} accessibilityLabel="Sign in with Google">
+        <Pressable
+          style={styles.google}
+          onPress={() => Alert.alert('Google sign-in', 'Google sign-in is coming soon. Please use your email and password.')}
+          accessibilityLabel="Sign in with Google"
+        >
           <Ionicons name="logo-google" size={20} color={colors.text} />
         </Pressable>
       </Card>

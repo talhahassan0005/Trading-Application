@@ -6,6 +6,7 @@ import {
   BookText,
   Flag,
   Settings,
+  UserX,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -21,6 +22,7 @@ export const navItems: NavItemConfig[] = [
   { path: '/withdrawals', label: 'Withdrawals', icon: Banknote },
   { path: '/users', label: 'Users', icon: Users },
   { path: '/kyc', label: 'KYC review', icon: ShieldCheck },
+  { path: '/deletion-requests', label: 'Deletion requests', icon: UserX },
   { path: '/ledger', label: 'Ledger', icon: BookText },
   { path: '/disputes', label: 'Disputes', icon: Flag },
   { path: '/settings', label: 'Settings', icon: Settings },

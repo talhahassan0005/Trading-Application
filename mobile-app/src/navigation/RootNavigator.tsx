@@ -1,4 +1,5 @@
 import React from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
@@ -87,6 +88,7 @@ function AppTabs() {
 /** Auth stack when signed out, tabs (+ asset selector) when signed in. */
 export function RootNavigator() {
   const { colors, isDark } = useTheme();
+  const ready = useAuthStore((s) => s.ready);
   const user = useAuthStore((s) => s.user);
 
   const navTheme = {
@@ -101,6 +103,14 @@ export function RootNavigator() {
       notification: colors.warn,
     },
   };
+
+  if (!ready) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.page }}>
+        <ActivityIndicator color={colors.accent} />
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer theme={navTheme}>

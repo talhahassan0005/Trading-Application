@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthField } from '../../components/AuthField';
@@ -29,6 +29,7 @@ export default function SignUpScreen({ navigation }: Props) {
   const [notUsTaxpayer, setNotUsTaxpayer] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [terms, setTerms] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const styles = useStyles((t) => ({
     card: { gap: t.spacing.lg },
@@ -74,11 +75,15 @@ export default function SignUpScreen({ navigation }: Props) {
     sheetText: { ...t.typography.body, color: t.colors.text, lineHeight: 21 },
   }));
 
-  const submit = () => {
+  const submit = async () => {
+    if (loading) return;
     if (!ageAccepted || !notUsTaxpayer) return setError('Please confirm both checkboxes to continue.');
-    const err = signUp(email, password);
-    setError(err);
-    if (!err) navigation.navigate('VerifyCode');
+    setLoading(true);
+    const res = await signUp(email, password, { country, currency });
+    setLoading(false);
+    setError(res.error ?? null);
+    if (res.needsCode) navigation.navigate('VerifyCode');
+    // Without a code step the auth store signs straight in and the navigator swaps to the app.
   };
 
   return (
@@ -135,10 +140,14 @@ export default function SignUpScreen({ navigation }: Props) {
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <Pressable style={styles.submit} onPress={submit} accessibilityRole="button">
+        <Pressable style={[styles.submit, loading && { opacity: 0.7 }]} onPress={submit} disabled={loading} accessibilityRole="button">
           <Text style={styles.submitText}>Registration</Text>
           <View style={styles.arrowCircle}>
-            <Ionicons name="arrow-forward" size={14} color={colors.onAccent} />
+            {loading ? (
+              <ActivityIndicator size="small" color={colors.onAccent} />
+            ) : (
+              <Ionicons name="arrow-forward" size={14} color={colors.onAccent} />
+            )}
           </View>
         </Pressable>
 
@@ -150,7 +159,7 @@ export default function SignUpScreen({ navigation }: Props) {
 
         <Pressable
           style={styles.google}
-          onPress={() => Alert.alert('Demo app', 'Google sign-up is not available in this demo.')}
+          onPress={() => Alert.alert('Google sign-up', 'Google sign-up is coming soon. Please use your email and password.')}
           accessibilityLabel="Sign up with Google"
         >
           <Ionicons name="logo-google" size={20} color={colors.text} />

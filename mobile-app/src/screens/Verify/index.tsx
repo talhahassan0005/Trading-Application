@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Alert, Pressable, Switch, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -14,18 +14,10 @@ import { ScreenHeader } from '../../components/ScreenHeader';
 import { COUNTRIES } from '../../data/countries';
 import type { AppStackParamList } from '../../navigation/types';
 import { useAuthStore } from '../../store/auth';
-import { KycKey, KycStatus, useKycStore } from '../../store/kyc';
+import { useKycStore } from '../../store/kyc';
 import { useProfileStore } from '../../store/profile';
 import { useStyles, useTheme, withAlpha } from '../../theme';
-import { accountId as idFor } from '../../utils/accountId';
-
-const KYC_ITEMS: Array<{ key: KycKey; title: string; hint: string }> = [
-  { key: 'email', title: 'Email address', hint: 'Confirmed with your sign-up code' },
-  { key: 'phone', title: 'Phone number', hint: 'Verify with an SMS code' },
-  { key: 'id', title: 'ID document', hint: 'Passport, national ID or driver license' },
-  { key: 'address', title: 'Proof of address', hint: 'Utility bill or bank statement, under 3 months old' },
-];
-const STATUS_TEXT: Record<KycStatus, string> = { todo: 'Required', pending: 'In review', verified: 'Verified' };
+import { KycSection } from './KycSection';
 
 /** Quick-links row that opens the account submenu, like the reference "My account" panel. */
 function AccountMenu() {
@@ -88,13 +80,13 @@ function AccountMenu() {
 export default function VerifyScreen() {
   const { colors } = useTheme();
   const user = useAuthStore((s) => s.user);
-  const kycItems = useKycStore((s) => s.items);
-  const submitKyc = useKycStore((s) => s.submit);
+  const kycStatus = useKycStore((s) => s.status);
   const profile = useProfileStore();
+  const [saving, setSaving] = useState(false);
 
   const email = user?.email ?? '';
-  const accountId = useMemo(() => idFor(email), [email]);
-  const idVerified = kycItems.id === 'verified' && kycItems.address === 'verified';
+  const accountId = user ? String(user.accountNo) : '';
+  const idVerified = kycStatus === 'verified';
   const requiredFilled = !!(profile.firstName.trim() && profile.lastName.trim() && profile.dateOfBirth && profile.country && profile.address.trim());
 
   const styles = useStyles((t) => ({
@@ -135,16 +127,6 @@ export default function VerifyScreen() {
       borderRadius: t.radius.pill,
     },
     badgeText: { ...t.typography.caption, color: t.colors.onAccent, fontWeight: '800' },
-    banner: {
-      flexDirection: 'row',
-      gap: t.spacing.md,
-      padding: t.spacing.md,
-      borderRadius: t.radius.md,
-      backgroundColor: withAlpha(t.colors.down, 0.12),
-      borderWidth: 1,
-      borderColor: t.colors.down,
-    },
-    bannerText: { ...t.typography.label, color: t.colors.text, flex: 1, lineHeight: 18 },
     securityHead: { flexDirection: 'row', alignItems: 'center', gap: t.spacing.md },
     securityTitle: { ...t.typography.subheading, color: t.colors.text },
     securitySub: { ...t.typography.caption, color: t.colors.muted },
@@ -155,29 +137,45 @@ export default function VerifyScreen() {
     deleteText: { ...t.typography.body, color: t.colors.down, fontWeight: '700' },
     addCardBtn: { height: 34, paddingHorizontal: t.spacing.md, alignSelf: 'flex-start' },
     empty: { ...t.typography.label, color: t.colors.muted },
-    small: { minHeight: 34, paddingHorizontal: t.spacing.md },
-    upload: {
-      borderWidth: 1.5,
-      borderStyle: 'dashed',
-      borderColor: t.colors.border,
-      borderRadius: t.radius.lg,
-      padding: t.spacing.xl,
-      alignItems: 'center',
-      gap: t.spacing.sm,
-    },
-    uploadTitle: { ...t.typography.subheading, color: t.colors.text },
-    note: { ...t.typography.caption, color: t.colors.muted, textAlign: 'center', lineHeight: 15 },
   }));
 
-  const statusColor = (s: KycStatus) => (s === 'verified' ? colors.up : s === 'pending' ? colors.warn : colors.muted);
-  const statusIcon = (s: KycStatus): keyof typeof Ionicons.glyphMap =>
-    s === 'verified' ? 'checkmark-circle' : s === 'pending' ? 'time' : 'ellipse-outline';
+  const save = async () => {
+    if (!user || saving) return;
+    setSaving(true);
+    const err = await profile.save(user.id);
+    setSaving(false);
+    Alert.alert(err ? 'Could not save' : 'Saved', err ?? 'Your profile has been updated.');
+  };
 
-  const confirmDelete = () =>
-    Alert.alert('Delete account', 'This is a demo — nothing is actually deleted, but you will be signed out.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => useAuthStore.getState().signOut() },
-    ]);
+  const confirmDelete = () => {
+    if (profile.deletionPending) {
+      return Alert.alert('Deletion requested', 'Your request is waiting for review by our team. Do you want to cancel it?', [
+        { text: 'Keep request', style: 'cancel' },
+        {
+          text: 'Cancel request',
+          onPress: async () => {
+            const err = await profile.cancelDeletion();
+            Alert.alert(err ? 'Could not cancel' : 'Request cancelled', err ?? 'Your account will not be deleted.');
+          },
+        },
+      ]);
+    }
+    Alert.alert(
+      'Delete account',
+      'Your request will be reviewed by our team. Once approved, your account and all its data are permanently deleted and you will be signed out.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Request deletion',
+          style: 'destructive',
+          onPress: async () => {
+            const err = await profile.requestDeletion('Requested from the app');
+            Alert.alert(err ? 'Could not send request' : 'Request sent', err ?? "We'll review your request and let you know.");
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <Screen>
@@ -202,7 +200,7 @@ export default function VerifyScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.idText} numberOfLines={1}>
-              {email || 'demo@trynex.app'}
+              {email}
             </Text>
             <Text style={styles.idSub}>ID: {accountId}</Text>
             <View style={[styles.badge, { backgroundColor: idVerified ? colors.up : colors.down }]}>
@@ -228,53 +226,12 @@ export default function VerifyScreen() {
         <AuthField label="Email" value={email} editable={false} />
         <PickerField label="Country" icon="globe-outline" value={profile.country} placeholder="Empty" options={COUNTRIES} searchable onChange={(v) => profile.update({ country: v })} />
         <AuthField label="Address" value={profile.address} onChangeText={(v) => profile.update({ address: v })} placeholder="Empty" />
-        <Button title="Save" onPress={() => Alert.alert('Saved', 'Your profile has been updated (demo — nothing is sent anywhere).')} />
+        <Button title="Save" onPress={save} loading={saving} />
       </Card>
 
       <Card>
         <Text style={styles.section}>Documents verification</Text>
-        {!requiredFilled ? (
-          <View style={styles.banner}>
-            <Ionicons name="alert-circle" size={20} color={colors.down} />
-            <Text style={styles.bannerText}>You need to fill your personal data before verifying your account.</Text>
-          </View>
-        ) : (
-          <>
-            {KYC_ITEMS.map((item, i) => {
-              const status = kycItems[item.key];
-              const needsAction = status === 'todo' && item.key !== 'id' && item.key !== 'address';
-              return (
-                <View key={item.key}>
-                  {i > 0 && <View style={styles.divider} />}
-                  <Row
-                    left={<Ionicons name={statusIcon(status)} size={24} color={statusColor(status)} />}
-                    title={item.title}
-                    subtitle={item.hint}
-                    right={
-                      needsAction ? (
-                        <Button title="Verify" variant="outline" style={styles.small} onPress={() => submitKyc(item.key)} />
-                      ) : (
-                        <Text style={{ color: statusColor(status), fontWeight: '700', fontSize: 12 }}>{STATUS_TEXT[status]}</Text>
-                      )
-                    }
-                  />
-                </View>
-              );
-            })}
-            <Pressable
-              style={[styles.upload, { marginTop: 12 }]}
-              accessibilityRole="button"
-              accessibilityLabel="Upload ID document (placeholder)"
-              onPress={() => kycItems.id === 'todo' && submitKyc('id')}
-            >
-              <Ionicons name="cloud-upload-outline" size={32} color={colors.accent} />
-              <Text style={styles.uploadTitle}>
-                {kycItems.id === 'todo' ? 'Tap to upload ID document' : kycItems.id === 'pending' ? 'ID submitted — in review' : 'ID verified'}
-              </Text>
-              <Text style={styles.note}>Placeholder only: nothing is uploaded or stored.</Text>
-            </Pressable>
-          </>
-        )}
+        {user && <KycSection userId={user.id} requiredFilled={requiredFilled} saveProfile={() => profile.save(user.id)} />}
       </Card>
 
       <Card style={{ gap: 4 }}>
@@ -319,7 +276,7 @@ export default function VerifyScreen() {
         <View style={styles.divider} />
         <Pressable style={styles.deleteRow} onPress={confirmDelete} accessibilityRole="button">
           <Ionicons name="close-circle" size={18} color={colors.down} />
-          <Text style={styles.deleteText}>Delete My account</Text>
+          <Text style={styles.deleteText}>{profile.deletionPending ? 'Deletion requested — tap to cancel' : 'Delete My account'}</Text>
         </Pressable>
       </Card>
 

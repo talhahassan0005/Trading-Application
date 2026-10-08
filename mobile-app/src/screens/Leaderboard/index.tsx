@@ -16,7 +16,7 @@ import { money } from '../../utils/format';
 export default function LeaderboardScreen() {
   const { colors } = useTheme();
   const user = useAuthStore((s) => s.user);
-  const id = accountId(user?.email ?? 'demo@trynex.app');
+  const id = user ? String(user.accountNo) : accountId('demo@trynex.app');
 
   const styles = useStyles((t) => ({
     you: {

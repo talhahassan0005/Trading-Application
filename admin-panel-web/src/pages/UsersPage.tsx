@@ -39,15 +39,19 @@ export function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState<DemoTradeOutcome | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
     const handle = setTimeout(() => {
-      fetchUsers(query).then((res) => {
-        setUsers(res);
-        setLoading(false);
-        setSelected(new Set());
-      });
+      fetchUsers(query)
+        .then((res) => {
+          setUsers(res);
+          setError(null);
+          setSelected(new Set());
+        })
+        .catch((e: Error) => setError(e.message))
+        .finally(() => setLoading(false));
     }, 150);
     return () => clearTimeout(handle);
   }, [query]);
@@ -108,6 +112,12 @@ export function UsersPage() {
       <Text variant="title" className="mb-4">
         Users
       </Text>
+
+      {error ? (
+        <Text variant="bodySmall" color="text-danger" className="mb-4">
+          {error}
+        </Text>
+      ) : null}
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="max-w-sm flex-1">
@@ -187,7 +197,7 @@ export function UsersPage() {
                       <div>
                         <Text variant="bodyMedium">{user.name}</Text>
                         <Text variant="caption" color="text-ink-muted">
-                          {user.id} · {user.email}
+                          #{user.accountNo} · {user.email}
                         </Text>
                       </div>
                     </div>

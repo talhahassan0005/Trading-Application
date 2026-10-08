@@ -1,20 +1,24 @@
 import { useState, type FormEvent } from 'react';
 import { Sun, Mail, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { Text, Card, TextField, Checkbox, Button } from '../components';
+import { backendConfigured } from '../api/supabase';
+import { Text, Card, TextField, Button } from '../components';
 
 export function SignInPage() {
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [require2fa, setRequire2fa] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
     try {
-      await signIn(email, password, require2fa);
+      await signIn(email, password);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sign-in failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -53,7 +57,17 @@ export function SignInPage() {
               leftIcon={Lock}
               autoComplete="current-password"
             />
-            <Checkbox checked={require2fa} onChange={setRequire2fa} label="Require 2FA code" />
+            {error ? (
+              <Text variant="bodySmall" color="text-danger">
+                {error}
+              </Text>
+            ) : null}
+            {!backendConfigured ? (
+              <Text variant="bodySmall" color="text-warning">
+                Not connected to the backend yet: add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to
+                admin-panel-web/.env.local, then restart the dev server.
+              </Text>
+            ) : null}
             <Button type="submit" label="Sign in" loading={loading} fullWidth size="lg" />
           </form>
         </Card>

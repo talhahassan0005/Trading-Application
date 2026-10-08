@@ -15,6 +15,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const badgeFor = (path: string) => {
     if (path === '/withdrawals') return counts.withdrawals;
     if (path === '/disputes') return counts.disputes;
+    if (path === '/kyc') return counts.kyc;
+    if (path === '/deletion-requests') return counts.deletions;
     return 0;
   };
 

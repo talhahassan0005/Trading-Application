@@ -32,7 +32,7 @@ export interface NotificationItem {
   read: boolean;
 }
 
-export type KycStatus = 'verified' | 'pending' | 'rejected';
+export type KycStatus = 'unverified' | 'verified' | 'pending' | 'rejected';
 
 export interface WithdrawalRequest {
   id: string;
@@ -59,6 +59,8 @@ export type DemoTradeOutcome = 'profit' | 'moderate' | 'loss';
 
 export interface PlatformUser {
   id: string;
+  /** Short public account number, the same one the user sees in the app. */
+  accountNo: number;
   name: string;
   email: string;
   balance: number;
@@ -70,25 +72,42 @@ export interface PlatformUser {
 
 export type CheckResult = 'pass' | 'fail' | 'manual';
 
-export type KycDocumentType = 'passport' | 'id_front' | 'id_back' | 'selfie' | 'driver_license' | 'national_id';
+export type KycDocumentType =
+  | 'passport'
+  | 'id_front'
+  | 'id_back'
+  | 'selfie'
+  | 'driver_license'
+  | 'national_id'
+  | 'proof_of_address';
 
 export interface KycDocument {
   id: string;
   type: KycDocumentType;
   label: string;
   uploadedAt: string;
+  /** Path of the file in the private storage bucket. */
+  storagePath?: string;
 }
 
 export interface KycCase {
   id: string;
   userId: string;
+  accountNo?: number;
   userName: string;
   documentType: string;
   waitingFor: string;
-  nameMatch: CheckResult;
-  documentExpiry: 'valid' | 'expired';
-  faceMatch: CheckResult;
+  /** What the user typed in the app, to compare against the documents. */
+  applicant: KycApplicant;
   documents: KycDocument[];
+}
+
+export interface KycApplicant {
+  fullName: string;
+  email: string;
+  dateOfBirth: string | null;
+  country: string | null;
+  address: string;
 }
 
 export type LedgerEntryType =
@@ -119,4 +138,19 @@ export interface DisputeCase {
   userId: string;
   description: string;
   status: DisputeStatus;
+}
+
+export type DeletionRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export interface DeletionRequest {
+  id: string;
+  /** Null once the account has been deleted. */
+  userId: string | null;
+  accountNo: number | null;
+  userName: string;
+  email: string;
+  reason: string;
+  status: DeletionRequestStatus;
+  createdAt: string;
+  decidedAt: string | null;
 }

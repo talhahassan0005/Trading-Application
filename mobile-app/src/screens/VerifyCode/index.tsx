@@ -15,6 +15,9 @@ const RESEND_SECONDS = 30;
 export default function VerifyCodeScreen({ navigation }: Props) {
   const pending = useAuthStore((s) => s.pending);
   const verifyCode = useAuthStore((s) => s.verifyCode);
+  const resendCode = useAuthStore((s) => s.resendCode);
+  const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
@@ -47,10 +50,21 @@ export default function VerifyCodeScreen({ navigation }: Props) {
     link: { ...t.typography.label, color: t.colors.accent, textAlign: 'center' },
   }));
 
-  const submit = () => {
-    const err = verifyCode(code);
+  const submit = async () => {
+    if (loading) return;
+    setLoading(true);
+    const err = await verifyCode(code);
+    setLoading(false);
     setError(err);
     // On success the auth store sets `user` and the root navigator swaps to the app.
+  };
+
+  const resend = async () => {
+    setSecondsLeft(RESEND_SECONDS);
+    setNotice(null);
+    const err = await resendCode();
+    setError(err);
+    if (!err) setNotice('A new code is on its way.');
   };
 
   return (
@@ -75,13 +89,14 @@ export default function VerifyCodeScreen({ navigation }: Props) {
         autoFocus
         textContentType="oneTimeCode"
       />
-      <Text style={styles.hint}>Demo: any 6 digits are accepted.</Text>
+      <Text style={styles.hint}>Check your inbox (and spam folder) for the code.</Text>
+      {notice && <Text style={styles.hint}>{notice}</Text>}
       {error && <Text style={styles.error}>{error}</Text>}
-      <Button title="Verify" onPress={submit} disabled={code.length < LENGTH} />
+      <Button title="Verify" onPress={submit} loading={loading} disabled={code.length < LENGTH || loading} />
       {secondsLeft > 0 ? (
         <Text style={styles.hint}>Resend code in {secondsLeft}s</Text>
       ) : (
-        <Pressable onPress={() => setSecondsLeft(RESEND_SECONDS)}>
+        <Pressable onPress={resend}>
           <Text style={styles.link}>Resend code</Text>
         </Pressable>
       )}

@@ -31,7 +31,7 @@ const OUTCOME_TEXT_COLOR: Record<string, string> = {
 export function UserDetailPage() {
   const { userId = '' } = useParams();
   const navigate = useNavigate();
-  const { data: user, setData } = useAsyncData(() => fetchUserById(userId), undefined, [userId]);
+  const { data: user, setData, loading } = useAsyncData(() => fetchUserById(userId), undefined, [userId]);
   const [updating, setUpdating] = useState(false);
   const [updatingOutcome, setUpdatingOutcome] = useState<DemoTradeOutcome | null>(null);
   const confirm = useConfirm();
@@ -44,13 +44,13 @@ export function UserDetailPage() {
       next === 'frozen'
         ? {
             title: 'Freeze this account?',
-            description: `${user.name} (${user.id}) will lose the ability to trade, deposit or withdraw until unfrozen.`,
+            description: `${user.name} (#${user.accountNo}) will be signed out of the app right away and blocked from signing in until unfrozen.`,
             confirmLabel: 'Freeze account',
             tone: 'danger',
           }
         : {
             title: 'Unfreeze this account?',
-            description: `${user.name} (${user.id}) will regain full access immediately.`,
+            description: `${user.name} (#${user.accountNo}) will be able to sign in again immediately.`,
             confirmLabel: 'Unfreeze account',
             tone: 'success',
           }
@@ -77,7 +77,13 @@ export function UserDetailPage() {
     }
   };
 
-  if (!user) return null;
+  if (!user) {
+    return loading ? null : (
+      <Text variant="bodySmall" color="text-ink-muted">
+        This user no longer exists.
+      </Text>
+    );
+  }
 
   return (
     <div>
@@ -99,7 +105,7 @@ export function UserDetailPage() {
               {user.email}
             </Text>
             <Text variant="caption" color="text-ink-muted" className="mt-0.5">
-              {user.id}
+              #{user.accountNo}
             </Text>
           </div>
 

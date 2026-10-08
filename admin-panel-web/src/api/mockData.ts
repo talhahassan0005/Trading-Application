@@ -1,11 +1,9 @@
 import type {
   ActivityItem,
   DisputeCase,
-  KycCase,
   LedgerTransaction,
   NotificationItem,
   OverviewStats,
-  PlatformUser,
   WithdrawalRequest,
 } from '../types/models';
 
@@ -38,79 +36,6 @@ export const mockWithdrawals: WithdrawalRequest[] = [
   { id: 'wd_9a2', userId: 'u_1042', userName: 'Maya R.', amount: 400, method: 'E-wallet', kycStatus: 'verified', requestedAgo: '6m' },
   { id: 'wd_9b7', userId: 'u_0781', userName: 'Jon P.', amount: 1200, method: 'Crypto', kycStatus: 'verified', requestedAgo: '22m' },
   { id: 'wd_9c1', userId: 'u_1190', userName: 'Ravi S.', amount: 150, method: 'Card', kycStatus: 'pending', requestedAgo: '1h' },
-];
-
-function daysAgo(n: number): string {
-  return new Date(Date.now() - n * 86_400_000).toISOString();
-}
-
-export const mockUsers: PlatformUser[] = [
-  { id: 'u_1042', name: 'Maya R.', email: 'maya@example.com', balance: 1250, kycStatus: 'verified', status: 'active', joinedAt: daysAgo(3), demoTradeOutcome: 'moderate' },
-  { id: 'u_0781', name: 'Jon P.', email: 'jon@example.com', balance: 4010, kycStatus: 'verified', status: 'active', joinedAt: daysAgo(64), demoTradeOutcome: 'moderate' },
-  { id: 'u_1190', name: 'Ravi S.', email: 'ravi@example.com', balance: 320, kycStatus: 'pending', status: 'active', joinedAt: daysAgo(7), demoTradeOutcome: 'moderate' },
-  { id: 'u_0912', name: 'Lena K.', email: 'lena@example.com', balance: 0, kycStatus: 'verified', status: 'frozen', joinedAt: daysAgo(410), demoTradeOutcome: 'moderate' },
-  { id: 'u_0455', name: 'Sam T.', email: 'sam@example.com', balance: 780, kycStatus: 'verified', status: 'active', joinedAt: daysAgo(92), demoTradeOutcome: 'moderate' },
-];
-
-export const mockKycQueue: KycCase[] = [
-  {
-    id: 'kyc_1',
-    userId: 'u_1190',
-    userName: 'Ravi S.',
-    documentType: 'Passport',
-    waitingFor: '1h',
-    nameMatch: 'pass',
-    documentExpiry: 'valid',
-    faceMatch: 'manual',
-    documents: [
-      { id: 'doc_1a', type: 'passport', label: 'Passport photo page', uploadedAt: daysAgo(0) },
-      { id: 'doc_1b', type: 'selfie', label: 'Selfie with ID', uploadedAt: daysAgo(0) },
-    ],
-  },
-  {
-    id: 'kyc_2',
-    userId: 'u_1201',
-    userName: 'Ana D.',
-    documentType: 'Driver license',
-    waitingFor: '2h',
-    nameMatch: 'pass',
-    documentExpiry: 'valid',
-    faceMatch: 'pass',
-    documents: [
-      { id: 'doc_2a', type: 'id_front', label: 'License — front', uploadedAt: daysAgo(0) },
-      { id: 'doc_2b', type: 'id_back', label: 'License — back', uploadedAt: daysAgo(0) },
-      { id: 'doc_2c', type: 'selfie', label: 'Selfie with ID', uploadedAt: daysAgo(0) },
-    ],
-  },
-  {
-    id: 'kyc_3',
-    userId: 'u_1215',
-    userName: 'Omar H.',
-    documentType: 'National ID',
-    waitingFor: '3h',
-    nameMatch: 'manual',
-    documentExpiry: 'valid',
-    faceMatch: 'pass',
-    documents: [
-      { id: 'doc_3a', type: 'national_id', label: 'National ID — front', uploadedAt: daysAgo(0) },
-      { id: 'doc_3b', type: 'id_back', label: 'National ID — back', uploadedAt: daysAgo(0) },
-      { id: 'doc_3c', type: 'selfie', label: 'Selfie with ID', uploadedAt: daysAgo(0) },
-    ],
-  },
-  {
-    id: 'kyc_4',
-    userId: 'u_1230',
-    userName: 'Ivy L.',
-    documentType: 'Passport',
-    waitingFor: '5h',
-    nameMatch: 'pass',
-    documentExpiry: 'expired',
-    faceMatch: 'fail',
-    documents: [
-      { id: 'doc_4a', type: 'passport', label: 'Passport photo page', uploadedAt: daysAgo(0) },
-      { id: 'doc_4b', type: 'selfie', label: 'Selfie with ID', uploadedAt: daysAgo(0) },
-    ],
-  },
 ];
 
 export const mockLedger: LedgerTransaction[] = [

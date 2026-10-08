@@ -8,6 +8,7 @@ import { WithdrawalsPage } from './pages/WithdrawalsPage';
 import { UsersPage } from './pages/UsersPage';
 import { UserDetailPage } from './pages/UserDetailPage';
 import { KycPage } from './pages/KycPage';
+import { DeletionRequestsPage } from './pages/DeletionRequestsPage';
 import { LedgerPage } from './pages/LedgerPage';
 import { DisputesPage } from './pages/DisputesPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -19,7 +20,8 @@ function RequireAuth({ children }: { children: ReactNode }) {
 }
 
 export default function App() {
-  const { admin } = useAuth();
+  const { admin, ready } = useAuth();
+  if (!ready) return null; // checking the saved session
 
   return (
     <Routes>
@@ -39,6 +41,7 @@ export default function App() {
         <Route path="/users" element={<UsersPage />} />
         <Route path="/users/:userId" element={<UserDetailPage />} />
         <Route path="/kyc" element={<KycPage />} />
+        <Route path="/deletion-requests" element={<DeletionRequestsPage />} />
         <Route path="/ledger" element={<LedgerPage />} />
         <Route path="/disputes" element={<DisputesPage />} />
         <Route path="/settings" element={<SettingsPage />} />
