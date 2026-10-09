@@ -51,7 +51,7 @@ function AssetRow({ asset, current, onPick }: { asset: Asset; current: boolean; 
         </View>
         <Text style={styles.sub} numberOfLines={1}>
           {asset.name ? `${asset.name} · ` : ''}
-          {otc && asset.market !== 'otc' ? 'Market closed' : asset.category}
+          {asset.category}
         </Text>
       </View>
       <View style={styles.right}>
