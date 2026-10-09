@@ -5,7 +5,7 @@ Supabase project: one user database, one login system, one private file store.
 
 | Feature | Mobile app | Admin panel |
 |---|---|---|
-| Sign up / sign in | Email + password, 6-digit email code | Staff-only login (`role = 'admin'`) |
+| Sign up / sign in | Email + password, 6-digit email code, forgot password by code | Staff-only login (`role = 'admin'`) |
 | Users | — | Live user list, search, user details |
 | Account freeze | Frozen users are signed out instantly and can't sign in | Freeze / unfreeze button on a user |
 | KYC | Upload ID + proof of address photos | Review queue, view photos, approve / reject with a reason |
@@ -27,7 +27,7 @@ real backend first.
 1. In the project, open **SQL Editor → New query**.
 2. Paste the whole of [`schema.sql`](schema.sql) and click **Run**. It should say "Success. No rows returned".
 
-### 3. Make sign-up send a 6-digit code
+### 3. Make sign-up and password reset send 6-digit codes
 
 By default Supabase emails a link; the app expects a code.
 
@@ -39,7 +39,15 @@ By default Supabase emails a link; the app expects a code.
    <p>It expires in 1 hour. If you didn't sign up, ignore this email.</p>
    ```
 
-2. **Authentication → Sign In / Providers → Email**: make sure **Confirm email** is on and
+2. Same page, **Reset password** template — replace the body with:
+
+   ```html
+   <h2>Reset your Trynex password</h2>
+   <p>Enter this code in the app: <strong>{{ .Token }}</strong></p>
+   <p>If you didn't ask to reset your password, ignore this email.</p>
+   ```
+
+3. **Authentication → Sign In / Providers → Email**: make sure **Confirm email** is on and
    **Email OTP Length** is `6`.
 
 ### 4. Set up email sending (needed for real users)

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthField } from '../../components/AuthField';
@@ -76,7 +76,7 @@ export default function SignInScreen({ navigation }: Props) {
 
         <View style={styles.row}>
           <Checkbox checked={remember} onChange={setRemember} label="Remember me" />
-          <Pressable onPress={() => Alert.alert('Forgot password', 'Password reset is coming soon. Please contact support for help.')}>
+          <Pressable onPress={() => navigation.navigate('ForgotPassword', { email: email.trim() || undefined })}>
             <Text style={styles.link}>Forgot your password?</Text>
           </Pressable>
         </View>

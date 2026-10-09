@@ -33,6 +33,10 @@ interface AuthState {
   signUp: (email: string, password: string, details: api.SignUpDetails) => Promise<AuthResult>;
   verifyCode: (code: string) => Promise<string | null>;
   resendCode: () => Promise<string | null>;
+  /** Forgot password, step 1: email a reset code. */
+  requestPasswordReset: (email: string) => Promise<string | null>;
+  /** Step 2: check the code, set the new password and sign in. */
+  resetPassword: (email: string, code: string, newPassword: string) => Promise<string | null>;
   signOut: () => Promise<void>;
 }
 
@@ -159,6 +163,29 @@ export const useAuthStore = create<AuthState>((set, get) => {
       try {
         await api.resendSignUpCode(pending.email);
         return null;
+      } catch (e) {
+        return messageOf(e);
+      }
+    },
+
+    requestPasswordReset: async (rawEmail) => {
+      const email = rawEmail.trim().toLowerCase();
+      if (!EMAIL_RE.test(email)) return 'Enter a valid email address.';
+      try {
+        await api.sendPasswordResetCode(email);
+        return null;
+      } catch (e) {
+        return messageOf(e);
+      }
+    },
+
+    resetPassword: async (rawEmail, code, newPassword) => {
+      const email = rawEmail.trim().toLowerCase();
+      if (!/^\d{6}$/.test(code)) return 'Enter the 6-digit code from the email.';
+      if (newPassword.length < 6) return 'Password must be at least 6 characters.';
+      try {
+        const user = await api.resetPassword(email, code, newPassword);
+        return await startSession(user);
       } catch (e) {
         return messageOf(e);
       }

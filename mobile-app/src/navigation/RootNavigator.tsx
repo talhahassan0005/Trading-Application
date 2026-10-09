@@ -8,6 +8,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AnalyticsScreen from '../screens/Analytics';
 import AssetSelectorScreen from '../screens/AssetSelector';
 import DepositScreen from '../screens/Deposit';
+import ForgotPasswordScreen from '../screens/ForgotPassword';
 import LeaderboardScreen from '../screens/Leaderboard';
 import MarketScreen from '../screens/Market';
 import MoreScreen from '../screens/More';
@@ -135,6 +136,7 @@ export function RootNavigator() {
           <AuthStack.Screen name="SignIn" component={SignInScreen} />
           <AuthStack.Screen name="SignUp" component={SignUpScreen} />
           <AuthStack.Screen name="VerifyCode" component={VerifyCodeScreen} />
+          <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         </AuthStack.Navigator>
       )}
     </NavigationContainer>

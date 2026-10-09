@@ -123,6 +123,33 @@ export async function resendSignUpCode(email: string): Promise<void> {
   if (error) fail(error);
 }
 
+/**
+ * Emails a 6-digit password-reset code. Succeeds even for unknown emails, so the
+ * screen never reveals which addresses have accounts.
+ */
+export async function sendPasswordResetCode(email: string): Promise<void> {
+  requireConfig();
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  if (error) fail(error);
+}
+
+/** Checks the reset code (which signs the user in) and sets the new password. */
+export async function resetPassword(email: string, code: string, newPassword: string): Promise<AuthUser> {
+  requireConfig();
+  const { data, error } = await supabase.auth.verifyOtp({ email, token: code, type: 'recovery' });
+  if (error || !data.user) fail(error);
+  const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+  if (updateError) {
+    // Don't leave a half-finished reset signed in.
+    await supabase.auth.signOut();
+    if (/different from the old password/i.test(updateError.message)) {
+      throw new BackendError('Your new password must be different from your old one. Request a new code and try again.');
+    }
+    fail(updateError);
+  }
+  return data.user;
+}
+
 export async function signOut(): Promise<void> {
   if (!backendConfigured) return;
   await supabase.auth.signOut();
