@@ -10,6 +10,11 @@
  * spikes) so the price wanders like a real session but can never blow up. Ticks arrive every `dt` = 0.25 s and are aggregated into OHLC
  * candles by `getCandles`.
  *
+ * Performance: only series somebody is watching tick live. Any other series is
+ * caught up in one go (coarse exact-OU steps) the next time it's read, so idle
+ * pairs cost nothing. A new series starts with a short history; the full day is
+ * generated only when a chart first asks for candles.
+ *
  * This module is framework-free (no React) so the trades store can read prices
  * from it directly; `useOtcFeed.ts` is the React binding.
  */
@@ -62,7 +67,8 @@ const LV_SIGMA = 0.02;
 const LV_CLAMP = 0.7;
 
 // History is generated at a coarser step (exact OU transition) so seeding is cheap.
-const SEED_HOURS = 24; // a full day of history to scroll through
+const SEED_HOURS = 24; // a full day of history to scroll through (built on first chart use)
+const QUICK_SEED_MS = 15 * 60_000; // enough for a price + the 5-minute change ticker
 const SEED_STEP_S = 2;
 const MAX_POINTS = 250_000; // trim cap for the tick history
 const TRIM_TO = 200_000;
@@ -84,8 +90,12 @@ export class OtcSeries {
   readonly asset: Asset;
   times: number[] = [];
   prices: number[] = [];
-  /** Price at the start of the seeded history — reference for the % change. */
-  readonly openPrice: number;
+  /** Price at the start of the seeded history — fallback reference for the % change. */
+  openPrice: number;
+  /** True once the full SEED_HOURS of history exists (see ensureHistory). */
+  private fullHistory = false;
+  private regimeMinute = -1;
+  private regimeValue = 1;
   /** Points trimmed from the front so far; keeps candle-cache indexes valid. */
   dropped = 0;
   private x = 1;
@@ -96,15 +106,21 @@ export class OtcSeries {
   private legDir = 1;
   private listeners = new Set<Listener>();
 
-  constructor(asset: Asset) {
+  /** Seeds `spanMs` of history ending at `endMs`. */
+  constructor(asset: Asset, spanMs = QUICK_SEED_MS, endMs = Date.now()) {
     this.asset = asset;
-    this.seed();
+    this.seed(spanMs, endMs);
     this.openPrice = this.prices[0];
   }
 
-  /** 1 normally (OTC pattern); scaled down during this pair's real-market window, if it has one. */
+  /** 1 normally (OTC pattern); scaled down while this pair's real market is open. Cached per minute. */
   private regime(t: number): number {
-    return isOtc(this.asset, new Date(t)) ? 1 : REAL_MARKET_VOL_SCALE;
+    const minute = Math.floor(t / 60_000);
+    if (minute !== this.regimeMinute) {
+      this.regimeMinute = minute;
+      this.regimeValue = isOtc(this.asset, t) ? 1 : REAL_MARKET_VOL_SCALE;
+    }
+    return this.regimeValue;
   }
 
   /** Starts a new leg: usually a pullback against the last one, sometimes a continuation. */
@@ -144,24 +160,49 @@ export class OtcSeries {
     this.prices.push(this.x * this.asset.basePrice);
   }
 
-  /** Generates the seeded day of history at a coarse step (cheap start-up). */
-  private seed(): void {
-    const n = Math.floor((SEED_HOURS * 3600) / SEED_STEP_S);
-    const now = Date.now();
-    for (let i = 0; i < n; i++) this.stepExact(SEED_STEP_S, now - (n - 1 - i) * SEED_STEP_S * 1000);
+  /** Generates history at a coarse step (cheap start-up). */
+  private seed(spanMs: number, endMs: number): void {
+    const n = Math.max(1, Math.floor(spanMs / (SEED_STEP_S * 1000)));
+    for (let i = 0; i < n; i++) this.stepExact(SEED_STEP_S, endMs - (n - 1 - i) * SEED_STEP_S * 1000);
+  }
+
+  /**
+   * Fills any gap up to now with coarse steps — after the app was paused, or while nobody
+   * was watching this series (idle series don't tick). Cheap no-op when already current.
+   */
+  catchUp(nowMs = Date.now()): void {
+    const lastT = this.times[this.times.length - 1];
+    if (nowMs - lastT <= 3000) return;
+    for (let t = Math.max(lastT, nowMs - SEED_HOURS * 3600_000) + SEED_STEP_S * 1000; t < nowMs - TICK_MS; t += SEED_STEP_S * 1000) {
+      this.stepExact(SEED_STEP_S, t);
+    }
+  }
+
+  /**
+   * Extends a quick-seeded series back to a full day before its first candles are built.
+   * The older stretch is generated independently and then bent (a straight-line correction
+   * spread over the whole day, invisible on a chart) so it ends exactly where the existing
+   * history begins.
+   */
+  ensureHistory(): void {
+    if (this.fullHistory) return;
+    this.fullHistory = true;
+    const firstT = this.times[0];
+    const missing = SEED_HOURS * 3600_000 - (this.times[this.times.length - 1] - firstT);
+    if (missing <= SEED_STEP_S * 1000) return;
+    const older = new OtcSeries(this.asset, missing, firstT - SEED_STEP_S * 1000);
+    const n = older.prices.length;
+    const gap = this.prices[0] - older.price;
+    for (let i = 0; i < n; i++) older.prices[i] += (gap * (i + 1)) / n;
+    this.times = older.times.concat(this.times);
+    this.prices = older.prices.concat(this.prices);
+    this.openPrice = this.prices[0];
   }
 
   /** One live tick using the literal OU update from the spec. */
   tick(): void {
     const nowMs = Date.now();
-    // If the app was paused (screen locked, backgrounded) timers stop; fill the missing
-    // time with coarse steps so the chart has no hole.
-    const lastT = this.times[this.times.length - 1];
-    if (nowMs - lastT > 3000) {
-      for (let t = Math.max(lastT, nowMs - SEED_HOURS * 3600_000) + SEED_STEP_S * 1000; t < nowMs - TICK_MS; t += SEED_STEP_S * 1000) {
-        this.stepExact(SEED_STEP_S, t);
-      }
-    }
+    this.catchUp(nowMs);
     this.lv = clamp(this.lv - LV_THETA * this.lv * DT + LV_SIGMA * Math.sqrt(DT) * gauss(), -LV_CLAMP, LV_CLAMP);
     const sigma = SIGMA * VOL_SCALE * this.asset.volatility * Math.exp(this.lv) * this.regime(nowMs);
     this.stepMu(DT, nowMs);
@@ -200,9 +241,17 @@ export class OtcSeries {
     return ((this.price - refPrice) / refPrice) * 100;
   }
 
+  get watched(): boolean {
+    return this.listeners.size > 0;
+  }
+
   subscribe(listener: Listener): () => void {
+    this.catchUp();
     this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+    ensureTicker();
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
 }
 
@@ -211,18 +260,31 @@ export class OtcSeries {
 const registry = new Map<string, OtcSeries>();
 let timer: ReturnType<typeof setInterval> | null = null;
 
+/** Ticks only the series that are on screen; stops itself when nothing is watched. */
 function ensureTicker(): void {
   if (timer) return;
-  timer = setInterval(() => registry.forEach((s) => s.tick()), TICK_MS);
+  timer = setInterval(() => {
+    let any = false;
+    registry.forEach((s) => {
+      if (!s.watched) return;
+      any = true;
+      s.tick();
+    });
+    if (!any && timer) {
+      clearInterval(timer);
+      timer = null;
+    }
+  }, TICK_MS);
 }
 
-/** Lazily creates (and starts ticking) the series for a symbol. */
+/** Lazily creates the series for a symbol and brings it up to date. */
 export function getSeries(symbol: string): OtcSeries {
   let series = registry.get(symbol);
   if (!series) {
     series = new OtcSeries(getAsset(symbol));
     registry.set(symbol, series);
-    ensureTicker();
+  } else {
+    series.catchUp();
   }
   return series;
 }
@@ -265,6 +327,7 @@ export function getCandles(series: OtcSeries, seconds: number): Candle[] {
   const key = `${series.asset.symbol}|${seconds}`;
   let c = cache.get(key);
   if (!c) {
+    series.ensureHistory(); // must happen before any cache index is taken
     c = { candles: [], next: series.dropped };
     cache.set(key, c);
   }

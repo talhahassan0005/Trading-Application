@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { getSeries } from '../data/otcFeed';
 
-/** Latest simulated price + % change for a symbol, updated every tick. */
-export function useLivePrice(symbol: string): { price: number; change: number } {
+/**
+ * Latest simulated price + % change for a symbol.
+ * @param minIntervalMs re-render at most this often (lists use 1000 to stay light; default: every tick)
+ */
+export function useLivePrice(symbol: string, minIntervalMs = 0): { price: number; change: number } {
   const [snap, setSnap] = useState(() => {
     const s = getSeries(symbol);
     return { price: s.price, change: s.change };
@@ -10,7 +13,13 @@ export function useLivePrice(symbol: string): { price: number; change: number } 
   useEffect(() => {
     const s = getSeries(symbol);
     setSnap({ price: s.price, change: s.change });
-    return s.subscribe(() => setSnap({ price: s.price, change: s.change }));
-  }, [symbol]);
+    let last = 0;
+    return s.subscribe(() => {
+      const now = Date.now();
+      if (now - last < minIntervalMs) return;
+      last = now;
+      setSnap({ price: s.price, change: s.change });
+    });
+  }, [symbol, minIntervalMs]);
   return snap;
 }

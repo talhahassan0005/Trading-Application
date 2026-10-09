@@ -2,23 +2,32 @@ import React from 'react';
 import { Text, View } from 'react-native';
 import { useStyles } from '../theme';
 
-/** Glyph shown in each icon circle: flags for currencies, symbols for crypto/commodities. */
-const GLYPHS: Record<string, string> = {
-  USD: '🇺🇸', EUR: '🇪🇺', GBP: '🇬🇧', JPY: '🇯🇵', AUD: '🇦🇺', CAD: '🇨🇦',
-  BTC: '₿', ETH: 'Ξ', SOL: '◎', XRP: '✕',
-  XAU: '🥇', XAG: '🥈', WTI: '🛢️',
+import { getAsset } from '../data/assets';
+
+/** Crypto symbols; everything else falls back to a flag (currencies) or first letter. */
+const CRYPTO_GLYPHS: Record<string, string> = {
+  BTC: '₿', ETH: 'Ξ', SOL: '◎', XRP: '✕', LTC: 'Ł', DOGE: 'Ð', ADA: '₳', BCH: 'Ƀ', TRX: 'T', DOT: '●',
 };
 
-/** "EUR/USD" -> ['🇪🇺', '🇺🇸']; "AAPL" -> ['A']; "WTI Oil" -> ['🛢️'] */
+/** Currency codes whose first two letters aren't their country code. */
+const CURRENCY_COUNTRY: Record<string, string> = { EUR: 'EU', CNH: 'CN', XAU: '', XAG: '' };
+
+/** "PKR" -> 🇵🇰 (ISO 4217 codes start with the ISO 3166 country code). */
+function currencyFlag(code: string): string | null {
+  if (!/^[A-Z]{3}$/.test(code)) return null;
+  const cc = CURRENCY_COUNTRY[code] ?? code.slice(0, 2);
+  if (!cc) return null;
+  return String.fromCodePoint(...[...cc].map((ch) => 0x1f1e6 + ch.charCodeAt(0) - 65));
+}
+
+/** "EUR/USD" -> ['🇪🇺', '🇺🇸']; "BTC/USD" -> ['₿']; "AAPL" -> ['A']; "US500" -> ['🇺🇸'] */
 export function pairGlyphs(symbol: string): string[] {
-  const parts = symbol.split('/');
-  const first = parts[0].split(' ')[0];
-  if (parts.length === 2) {
-    // Metals trade against USD; show just the metal.
-    if (first === 'XAU' || first === 'XAG') return [GLYPHS[first]];
-    return [GLYPHS[first] ?? first[0], GLYPHS[parts[1]] ?? parts[1][0]];
-  }
-  return [GLYPHS[first] ?? first[0]];
+  const asset = getAsset(symbol);
+  if (asset.symbol === symbol && asset.icon) return [asset.icon];
+  const [base, quote] = symbol.split('/');
+  if (asset.symbol === symbol && asset.category === 'Crypto') return [CRYPTO_GLYPHS[base] ?? base[0]];
+  if (quote) return [currencyFlag(base) ?? base[0], currencyFlag(quote) ?? quote[0]];
+  return [symbol[0]];
 }
 
 /** One or two overlapping circular icons for an instrument. */

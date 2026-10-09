@@ -13,7 +13,8 @@ import { percent } from '../../utils/format';
 
 function AssetRow({ asset, current, onPick }: { asset: Asset; current: boolean; onPick: () => void }) {
   const { colors } = useTheme();
-  const { price, change } = useLivePrice(asset.symbol);
+  const { price, change } = useLivePrice(asset.symbol, 1000);
+  const otc = isOtc(asset);
   const styles = useStyles((t) => ({
     row: {
       flexDirection: 'row',
@@ -45,10 +46,13 @@ function AssetRow({ asset, current, onPick }: { asset: Asset; current: boolean; 
       <View style={styles.grow}>
         <View style={styles.nameRow}>
           <Text style={styles.name}>{asset.symbol}</Text>
-          {isOtc(asset) && <OtcBadge />}
+          {otc && <OtcBadge />}
           {current && <Ionicons name="checkmark-circle" size={16} color={colors.accent} />}
         </View>
-        <Text style={styles.sub}>{asset.category}</Text>
+        <Text style={styles.sub} numberOfLines={1}>
+          {asset.name ? `${asset.name} · ` : ''}
+          {otc && asset.market !== 'otc' ? 'Market closed' : asset.category}
+        </Text>
       </View>
       <View style={styles.right}>
         <Text style={styles.price}>{price.toFixed(asset.decimals)}</Text>
@@ -70,7 +74,9 @@ export default function AssetSelectorScreen() {
   const data = useMemo(() => {
     const q = query.trim().toLowerCase();
     return ASSETS.filter(
-      (a) => (category === 'All' || a.category === category) && (!q || a.symbol.toLowerCase().includes(q)),
+      (a) =>
+        (category === 'All' || a.category === category) &&
+        (!q || a.symbol.toLowerCase().includes(q) || !!a.name?.toLowerCase().includes(q)),
     );
   }, [query, category]);
 
@@ -158,9 +164,15 @@ export default function AssetSelectorScreen() {
         )}
         ListEmptyComponent={<Text style={styles.empty}>No pairs match your search.</Text>}
         ListFooterComponent={
-          <Text style={styles.note}>OTC = the real market is closed, so the price is generated in-app instead.</Text>
+          <Text style={styles.note}>
+            OTC = the real market for that pair is closed (or it has none), so the price is generated in-app. Forex trades
+            Sun 17:00 – Fri 17:00 New York time; US stocks Mon–Fri 09:30–16:00 New York time; crypto is open 24/7.
+          </Text>
         }
         keyboardShouldPersistTaps="handled"
+        initialNumToRender={14}
+        maxToRenderPerBatch={10}
+        windowSize={5}
       />
     </Screen>
   );
