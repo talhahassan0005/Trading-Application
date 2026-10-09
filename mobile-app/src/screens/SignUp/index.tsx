@@ -57,19 +57,6 @@ export default function SignUpScreen({ navigation }: Props) {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    divider: { flexDirection: 'row', alignItems: 'center', gap: t.spacing.md },
-    line: { flex: 1, height: 1, backgroundColor: t.colors.border },
-    or: { ...t.typography.caption, color: t.colors.muted },
-    google: {
-      alignSelf: 'center',
-      width: 64,
-      height: 44,
-      borderRadius: t.radius.md,
-      borderWidth: 1,
-      borderColor: t.colors.border,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     footer: { flexDirection: 'row', justifyContent: 'center', gap: t.spacing.xs, marginTop: t.spacing.sm },
     footText: { ...t.typography.label, color: t.colors.muted },
     sheetText: { ...t.typography.body, color: t.colors.text, lineHeight: 21 },
@@ -149,20 +136,6 @@ export default function SignUpScreen({ navigation }: Props) {
               <Ionicons name="arrow-forward" size={14} color={colors.onAccent} />
             )}
           </View>
-        </Pressable>
-
-        <View style={styles.divider}>
-          <View style={styles.line} />
-          <Text style={styles.or}>Sign in via</Text>
-          <View style={styles.line} />
-        </View>
-
-        <Pressable
-          style={styles.google}
-          onPress={() => Alert.alert('Google sign-up', 'Google sign-up is coming soon. Please use your email and password.')}
-          accessibilityLabel="Sign up with Google"
-        >
-          <Ionicons name="logo-google" size={20} color={colors.text} />
         </Pressable>
       </Card>
 
